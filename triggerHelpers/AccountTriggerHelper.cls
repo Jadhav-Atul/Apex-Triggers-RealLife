@@ -1,5 +1,6 @@
 public class AccountTriggerHelper{
 
+    //Create a related contact on Account Insert
     public static void createContacts(List<Account> newAccList){
         List<Contact> consToInsert = new List<Contact>();
 
@@ -19,4 +20,15 @@ public class AccountTriggerHelper{
             insert consToInsert;
         }
     }
+
+    //Update Account's custom field 'Account_Status__c' to 'New', if left blank while inserting Account
+    public static void populateStatus(List<Account> newAccList){
+
+        for(Account acc : newAccList){
+            if(String.isBlank(acc.Account_Status__c)){
+                acc.Account_Status__c = 'New';
+            }
+        }
+    }
+
 }
