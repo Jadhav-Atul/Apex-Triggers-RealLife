@@ -31,4 +31,38 @@ public class AccountTriggerHelper{
         }
     }
 
+    //Sync Account Phone to Contact.Account_Phone__c on update
+    public static void syncAccountPhone(List<Account> newAccList, Map<Id,Account> oldAccMap){
+        //Fetch accounts with updated phones
+        Map<Id,String> accIdToPhoneMap = new Map<Id,String>();
+
+        for(Account acc : newAccList){
+            Account oldAc = (oldAccMap!=NULL)? oldAccMap.get(acc.Id) : NULL;
+
+            if(acc.Phone != oldAc.Phone){               //Updated phones on account
+                accIdToPhoneMap.put(acc.Id, acc.Phone);
+            }
+        }
+
+        if(accIdToPhoneMap.isEmpty()) return;
+
+        //Fetch contacts for updated accounts
+        List<Contact> consToUpdate = [
+            SELECT Id, AccountId, Account_Phone__c
+            FROM Contact
+            WHERE AccountId IN : accIdToPhoneMap.keySet()
+        ];
+
+        //Update contact phones
+        for(Contact con : consToUpdate){
+            con.Account_Phone__c = accIdToPhoneMap.get(con.AccountId);
+        }
+
+        if(!consToUpdate.isEmpty()){
+            update consToUpdate;
+        }
+
+
+    }
+
 }

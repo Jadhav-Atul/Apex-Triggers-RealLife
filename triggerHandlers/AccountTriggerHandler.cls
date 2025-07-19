@@ -4,6 +4,10 @@ public class AccountTriggerHandler{
         AccountTriggerHelper.populateStatus(newAccList);
     }
 
+    public static void beforeUpdate(List<Account> newAccList, Map<Id,Account> oldAccMap){
+        AccountTriggerHelper.syncAccountPhone(newAccList, oldAccMap);
+    }
+
     public static void afterInsert(List<Account> newAccList){
        AccountTriggerHelper.createContacts(newAccList);
     }

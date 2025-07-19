@@ -36,4 +36,28 @@ public class AccountTriggerHelperTest{
         System.assertEquals('New', insertedAcc[0].Account_Status__c);
         System.assertEquals('Old', insertedAcc[1].Account_Status__c);
     }
+
+    @isTest 
+    static void testSyncAccountPhone(){
+        //create a test account
+        Account acc = new Account(Name='TestAcc',Phone = '1234567890');
+        insert acc;
+
+        //create a related contact
+        Contact con = new Contact(LastName = 'TestCon', AccountId = acc.Id );
+        insert con;
+
+        //update the phone on the account
+        acc.Phone = '9988998899';
+        update acc;
+
+        //fetch the updated related contacts
+        List<Contact> relatedConList = [
+            SELECT Id,AccountId, LastName, Account_Phone__c FROM Contact WHERE AccountId =: acc.Id LIMIT 2
+        ];
+
+        System.assertEquals('9988998899', relatedConList[0].Account_Phone__c);
+        System.AssertEquals('9988998899', relatedConList[1].Account_Phone__c);
+
+    }
 }

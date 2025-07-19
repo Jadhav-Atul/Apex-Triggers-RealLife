@@ -1,8 +1,10 @@
-trigger AccountTrigger on Account (before insert, after insert){
+trigger AccountTrigger on Account (before insert, before update, after insert){
     
     if(Trigger.isBefore){
         if(Trigger.isInsert){
             AccountTriggerHandler.beforeInsert(Trigger.new);
+        }else if(Trigger.isUpdate){
+            AccountTriggerHandler.beforeUpdate(Trigger.new, Trigger.oldMap);
         }
     }
     
