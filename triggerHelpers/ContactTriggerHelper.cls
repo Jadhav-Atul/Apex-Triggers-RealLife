@@ -1,18 +1,17 @@
 /**
  * Helper class for Contact Trigger.
  * 
- * This class is responsible for maintaining the `Total_Contacts__c` field 
+ * This class is responsible for maintaining the `Total_Contacts__c` and `Total_Active_Contacts__c` field 
  * on the Account object whenever Contacts are inserted, updated, deleted, or undeleted.
  * 
  * Key responsibilities:
  * - Identifies related Account Ids when Contact records are modified.
- * - Aggregates the count of active Contacts per Account.
- * - Updates the Account's `Total_Contacts__c` field accordingly.
+ * - Updates the Account's `Total_Contacts__c` and `Total_Active_Contacts__c` fields accordingly.
  */
 public class ContactTriggerHelper{
 
     /**
-     * Updates the `Total_Contacts__c` field on related Accounts 
+     * Updates the `Total_Contacts__c`and `Total_Active_Contacts__c` fields on related Accounts 
      * whenever Contact records are inserted, updated, deleted, or undeleted.
      *
      * @param newConList   List of new Contact records (from Trigger.new or Trigger.newMap.values()).
@@ -24,34 +23,44 @@ public class ContactTriggerHelper{
 
         // Fetch the Aggregate result (count of Contacts per Account)
         List<AggregateResult> aggResult = [
-            SELECT AccountId, Count(Id) contactCount 
+            SELECT AccountId,IsActive__c, Count(Id) contactCount 
             FROM Contact 
             WHERE AccountId IN :accIdSet 
-            GROUP BY AccountId
+            GROUP BY AccountId,IsActive__c
         ];
 
-        // Create a Map to store AccountId → Account
-        Map<Id,Account> accIdToAccMap = new Map<Id,Account>();
+        //Map to store AccountId and Total Active Contacts
+        Map<Id,Integer> accIdToTotalActiveContactCountMap = new Map<Id,Integer>();
+        //Map to store AccountId and Total Contacts
+        Map<Id,Integer> accIdToTotalContactCountMap = new Map<Id,Integer>();
+        for(AggregateResult ag : aggResult){
+            Id accId = (Id)ag.get('AccountId');
+            Boolean isActive = (Boolean)ag.get('IsActive__c');
+            Integer totalCount = (Integer)ag.get('contactCount');
 
-        for(AggregateResult agg : aggResult){
-            Account a = new Account(
-                Id = (Id)agg.get('AccountId'),
-                Total_Contacts__c = (Integer)agg.get('contactCount')
-            );
-            accIdToAccMap.put(a.Id,a);
-        }
+            //Add total contact count map
+            accIdToTotalContactCountMap.put(accId, accIdToTotalContactCountMap.containsKey(accId)?accIdToTotalContactCountMap.get(accId)+totalCount : totalCount);
 
-        // If an Account has no child contacts, set Total Contacts = 0
-        for(Id i : accIdSet){
-            if(!accIdToAccMap.keySet().contains(i)){
-                Account ac = new Account(Id=i, Total_Contacts__c=0);
-                accIdToAccMap.put(i,ac);           
+            //Add total active acount count
+            if(isActive==true){
+                accIdToTotalActiveContactCountMap.put(accId, accIdToTotalActiveContactCountMap.containsKey(accId)?accIdToTotalActiveContactCountMap.get(accId)+totalCount : totalCount);
             }
+        }
+        
+        //List to store accounts to be updated
+        List<Account> accountsToUpdate = new List<Account>();
+        for(Id i : accIdSet){
+            Integer totalActiveContacts = (accIdToTotalActiveContactCountMap.containsKey(i)) ? accIdToTotalActiveContactCountMap.get(i) : 0;
+            Integer totalContactCount = (accIdToTotalContactCountMap.containsKey(i)) ? accIdToTotalContactCountMap.get(i) : 0;
+            Account a = new Account(Id=i);
+            a.Total_Active_Contacts__c = totalActiveContacts;
+            a.Total_Contacts__c = totalContactCount;
+            accountsToUpdate.add(a);
         }
 
         // Update the Accounts
-        if(!accIdToAccMap.values().isEmpty()){
-            update accIdToAccMap.values();
+        if(!accountsToUpdate.isEmpty()){
+            update accountsToUpdate;
         }
     }
 
@@ -80,7 +89,7 @@ public class ContactTriggerHelper{
             }
 
             // Update (AccountId changed)
-            if(oldContact!=NULL && oldContact.AccountId!= newContact.AccountId){
+            if(oldContact!=NULL && ((oldContact.AccountId!= newContact.AccountId) || (oldContact.IsActive__c!= newContact.IsActive__c))){       //This line is changed during Trigger 6:-> '|| (oldContact.IsActive__c!= newContact.IsActive__c)'
                 if(newContact.AccountId!=NULL){
                     accIds.add(newContact.AccountId);
                 }

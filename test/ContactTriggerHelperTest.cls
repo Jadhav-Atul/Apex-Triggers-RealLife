@@ -34,24 +34,28 @@ public class ContactTriggerHelperTest{
         insert testAcc1;
 
         List<Account> insertedAcc1 = [
-            SELECT Id, Name, Total_Contacts__c 
+            SELECT Id, Name,Total_Active_Contacts__c, Total_Contacts__c 
             FROM Account 
             WHERE Id =: testAcc1.Id
         ]; 
         System.assertEquals(1, insertedAcc1[0].Total_Contacts__c, 
             'New Account should have Total_Contacts__c = 1');
+        System.assertEquals(0, insertedAcc1[0].Total_Active_Contacts__c, 
+            'New Account should have Total Active Contacts = 0');
 
         // Case 2: Insert a related Contact and verify contact count
-        Contact testCon1 = new Contact(LastName='TestContact1', AccountId = testAcc1.Id);
+        Contact testCon1 = new Contact(LastName='TestContact1', AccountId = testAcc1.Id,IsActive__c=true);
         insert testCon1;
 
         List<Account> insertedAccs = [
-            SELECT Id, Name, Total_Contacts__c 
+            SELECT Id, Name,Total_Active_Contacts__c, Total_Contacts__c 
             FROM Account 
             WHERE Id =: testAcc1.Id
         ];
         System.assertEquals(2, insertedAccs[0].Total_Contacts__c, 
             'Account should have Total_Contacts__c = 2 after inserting another Contact');
+        System.assertEquals(1, insertedAccs[0].Total_Active_Contacts__c, 
+            'Account should have Total Active Contacts = 1 after inserting another Contact');
 
         // Case 3: Insert another Account and reassign Contact to it
         Account testAcc2 = new Account(Name='TestAccount2');
@@ -61,7 +65,7 @@ public class ContactTriggerHelperTest{
         update conUpdate;
 
         List<Account> updatedAccounts = [
-            SELECT Id, Name, Total_Contacts__c 
+            SELECT Id, Name, Total_Active_Contacts__c,Total_Contacts__c 
             FROM Account 
             WHERE Id IN :new List<Id>{testAcc1.Id, testAcc2.Id}
         ];
@@ -75,6 +79,8 @@ public class ContactTriggerHelperTest{
             'Original Account should have count reduced to 1');
         System.assertEquals(2, accToContactCountMap.get('TestAccount2').Total_Contacts__c,
             'New Account should have count increased to 2');
+         System.assertEquals(1, accToContactCountMap.get('TestAccount2').Total_Active_Contacts__c, 
+            'Account should have Total Active Contacts = 1 after inserting another Contact');
 
         // Case 4: Delete and undelete the Contact
         List<Contact> consToDelete = [
